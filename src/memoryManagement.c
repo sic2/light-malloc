@@ -1,3 +1,9 @@
+/**
+* The following code is under GNU License.
+* See attached License file or visit:
+* https://gnu.org/licenses/gpl.html
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/mman.h>

@@ -4,31 +4,7 @@
 * https://gnu.org/licenses/gpl.html
 */
 
-/*
-Interface to manage allocated memory.
-*/
 #include <inttypes.h>
-
-// Structs
-struct headerMmapRegion {
-	void* nextMmap;
-	uint32_t length;
-} headerMmapRegion;
-
-struct freeBlockLinks {
-	void* prev;
-	void* next;
-} freeBlockLinks;
-
-struct freeBlockFooter {
-	uint32_t size; 
-} freeBlockFooter;
-
-// Used for both allocated and free blocks.
-struct blockHeader {
-	uint32_t attribute;
-} blockHeader;
-
 
 /**
  * @brief 	getMemory returns an allocated chunk of memory

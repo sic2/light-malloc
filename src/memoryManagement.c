@@ -16,7 +16,9 @@ typedef int bool;
 #define true 1
 #define false 0
 
-// MACROS
+/**
+ * MACROS
+ */
 #define MMAP(lenght) mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)
 #define ADDRESS_PLUS_OFFSET(address, offset) address + sizeof(offset)
 #define ADDRESS_MINUS_OFFSET(address, offset) address - sizeof(offset)
@@ -31,7 +33,9 @@ typedef int bool;
 
 #define INIT_STRUCT(type, address) (struct type*) address
 
-// MASKS
+/**
+ * MASKS
+ */
 const uint32_t MSB_TO_ONE = 2147483648; // 2^31
 const uint32_t ALL_BITS_EXCEPT_FIRST = 2147483647; // 2^i, i = 0..30
 const uint32_t UPPER_LIMIT_SIZE = 2147483648 - 1;
@@ -58,6 +62,39 @@ int largestFreeBlock = 0;
 static void* newMmapRegion = NULL;
 static void* freeList = NULL;
 static void* mmapsList = NULL;
+
+/*
+ * STRUCTS
+ */
+typedef struct headerMmapRegion {
+	void* nextMmap;
+	uint32_t length;
+} headerMmapRegion;
+
+struct freeBlockLinks {
+	void* prev;
+	void* next;
+} freeBlockLinks;
+
+struct freeBlockFooter {
+	uint32_t size; 
+} freeBlockFooter;
+
+// Used for both allocated and free blocks.
+struct blockHeader {
+	uint32_t attribute;
+} blockHeader;
+
+/*
+ * Enumerators
+ */
+ typedef enum 
+ {
+ 	NEIGHBOUR_BLOCKS_NOT_FREE,
+ 	NEIGHBOUR_BLOCKS_PRECEDENT_FREE,
+ 	NEIGHBOUR_BLOCKS_SUCCESSIVE_FREE,
+ 	NEIGHBOUR_BLOCKS_BOTH_FREE
+ } NEIGHBOUR_BLOCKS;
 
 // Prototypes
 void mmapRegion(uint64_t size);
@@ -87,13 +124,14 @@ void coalesceWithPrevBlock(void* newAddr, uint32_t newSize);
 void updateNextBlockOnCoalescing(void* newAddr, uint64_t sizeOffset);
 void setFooterBlockOnCoalescing(void* newAddr, uint64_t sizeOffset, uint32_t newSize);
 
-/* 
-==============
- METHODS
-==============
+/** 
+ *
+ * METHODS
+ *
  */
 
-void *getMemory(int size) {
+void *getMemory(int size) 
+{
     
 	if (size > (UPPER_LIMIT_SIZE * WORD_SIZE) || size < LOWER_LIMIT_SIZE) {
 		printf("Size is out of bounds \n");
@@ -123,7 +161,8 @@ void *getMemory(int size) {
 	return block;
 }
 
-void freeMemory(void *ptr) {
+void freeMemory(void *ptr) 
+{
 	/* 
 	Read flag for coalescing with previous block
 	Read size to get to the next block and check if it's free (coalescing)
@@ -145,7 +184,8 @@ void freeMemory(void *ptr) {
 	currentAllocatedMemory -= WORDS_TO_BYTES(size);
 }
 
-void mmapRegion(uint64_t size) {
+void mmapRegion(uint64_t size) 
+{
 	uint64_t length; 
 	bool mmapRegionsCoalesced = false; 
 	// Make sure there's enough allocated memory.
@@ -159,7 +199,7 @@ void mmapRegion(uint64_t size) {
 
 	newMmapRegion = MMAP(length); // TODO: check for errors
 	if (newMmapRegion == MAP_FAILED) {
-		fprintf(stderr, "Memory overflow\n");
+		fprintf(stderr, "memoryManagement.mmapRegion - Memory overflow\n");
 		exit(-1);
 	}
 
@@ -191,7 +231,8 @@ void mmapRegion(uint64_t size) {
 }
 
 // size free region in bytes
-void initialiseFreeMmapRegion(void* beginningFreeRegion, uint64_t sizeFreeRegion) {
+void initialiseFreeMmapRegion(void* beginningFreeRegion, uint64_t sizeFreeRegion) 
+{
 	uint32_t sizeFreeRegionInWords = BYTES_TO_WORDS(sizeFreeRegion); // headerMmapsize in words.
 	if(!freeList) {
 		freeList = beginningFreeRegion; // Initialise the free list.
@@ -216,7 +257,8 @@ void initialiseFreeMmapRegion(void* beginningFreeRegion, uint64_t sizeFreeRegion
 }
 
 // Lenght in bytes
-void setMmapFooter(void* newMmapRegion, uint64_t length) {
+void setMmapFooter(void* newMmapRegion, uint64_t length) 
+{
 	// Footer Mmap region - Flag (0) + size (0) to indicate end region (same struct than block header) 
 	void* footer = ADDRESS_MINUS_OFFSET((newMmapRegion + length), blockHeader);
 	struct blockHeader *footerMmap = INIT_STRUCT(blockHeader, footer);
@@ -224,7 +266,8 @@ void setMmapFooter(void* newMmapRegion, uint64_t length) {
 }
 
 // lengthMmapRegion in bytes
-bool coalesceMmapRegions(void* mmapsList, void* newMmapRegion, uint64_t lengthMmapRegion) {
+bool coalesceMmapRegions(void* mmapsList, void* newMmapRegion, uint64_t lengthMmapRegion) 
+{
 	
 	void* currentMmapRegion = mmapsList;
 	struct headerMmapRegion *headerMmap = INIT_STRUCT(headerMmapRegion, currentMmapRegion);
@@ -271,7 +314,8 @@ bool coalesceMmapRegions(void* mmapsList, void* newMmapRegion, uint64_t lengthMm
 	return false; // no coalescing.
 }
 
-void *getFreeBlock(uint64_t requestedSize) {
+void *getFreeBlock(uint64_t requestedSize) 
+{
 	// Transform size in bytes to size in words.
 	uint32_t size = BYTES_TO_WORDS(requestedSize);
 
@@ -348,8 +392,8 @@ void *getFreeBlock(uint64_t requestedSize) {
 void allocateBlock(uint32_t size, uint32_t spaceLeft, 
 	uint32_t minFreeRegionSize, uint32_t sizeFreeRegion,  
 	void* freeBlock, void* currentFreeBlock, 
-	struct freeBlockLinks *currentBlockLinks) {
-
+	struct freeBlockLinks *currentBlockLinks) 
+{
 	if (spaceLeft > minFreeRegionSize) {
 		if (sufficientSize(size)) {
 			freeList = splitFreeBlock(freeBlock, spaceLeft, 
@@ -383,7 +427,8 @@ void allocateBlock(uint32_t size, uint32_t spaceLeft,
 	}
 }
 
-void findAndSetLargestFreeBlock() {
+void findAndSetLargestFreeBlock() 
+{
 	// traverse free list.
 	largestFreeBlock = 0; // Reset largest free region.
 	int numberTraversedNodes = 0;
@@ -409,8 +454,8 @@ void findAndSetLargestFreeBlock() {
 // spaceLeft and size are in words
 void *splitFreeBlock(void* blockToSplit, uint64_t spaceLeft,
 		uint32_t size, void* currentFreeBlock, 
-		struct freeBlockLinks *currentBlockLinks) {
-
+		struct freeBlockLinks *currentBlockLinks) 
+{
 	// Reinitialise header of first sub-block.
 	void* block = ADDRESS_MINUS_OFFSET(blockToSplit, blockHeader);
 	struct blockHeader *allocatedBlock = INIT_STRUCT(blockHeader, block);
@@ -437,8 +482,8 @@ void *splitFreeBlock(void* blockToSplit, uint64_t spaceLeft,
 // size in words.
 // Flag one means block is free.
 void initialiseFreeBlock(void* freeRegion, uint32_t size, void* prevFreeRegion, 
-	void* nextFreeRegion, bool flag, bool setHeader) {
-	
+	void* nextFreeRegion, bool flag, bool setHeader) 
+{	
 	totalFreeSpace += WORDS_TO_BYTES(size); // Stats
 
 	 // Update largest free region.
@@ -466,7 +511,8 @@ void initialiseFreeBlock(void* freeRegion, uint32_t size, void* prevFreeRegion,
 }
 
 // Insert new free block into the free list
-void insertFreeBlock(void* newBlock, struct freeBlockLinks *prevBlockLinks) {
+void insertFreeBlock(void* newBlock, struct freeBlockLinks *prevBlockLinks) 
+{
 	void* usableArea = ADDRESS_PLUS_OFFSET(newBlock, blockHeader);
 	struct freeBlockLinks *newBlockLinks = INIT_STRUCT(freeBlockLinks, usableArea);
 
@@ -481,7 +527,8 @@ void insertFreeBlock(void* newBlock, struct freeBlockLinks *prevBlockLinks) {
 }
 
 // Remove allocated block from free list.
-void removeAllocatedBlock(struct freeBlockLinks *blockToBeRemovedLinks) {
+void removeAllocatedBlock(struct freeBlockLinks *blockToBeRemovedLinks) 
+{
 	void* prevBlock = PREV_BLOCK(blockToBeRemovedLinks);
 	void* prevLinks = ADDRESS_PLUS_OFFSET(prevBlock, blockHeader);
 	struct freeBlockLinks *prevBlockLinks = INIT_STRUCT(freeBlockLinks, prevLinks);
@@ -493,28 +540,27 @@ void removeAllocatedBlock(struct freeBlockLinks *blockToBeRemovedLinks) {
 	PREV_BLOCK(nextBlockLinks) = PREV_BLOCK(blockToBeRemovedLinks);
 }
 
-bool sufficientSize(uint32_t size) {
+bool sufficientSize(uint32_t size) 
+{
 	if (size < minimumSize())
 		return false;
 	else 
 		return true;
 }
 
-uint32_t minimumSize() {
+uint32_t minimumSize() 
+{
 	uint32_t min = sizeof(blockHeader) + sizeof(freeBlockLinks) + sizeof(freeBlockFooter);
 	return  BYTES_TO_WORDS(min);
 }
 
-void coalescingAndFree(void* block) {
+void coalescingAndFree(void* block) 
+{
 	struct blockHeader *header = INIT_STRUCT(blockHeader, block);
 	uint32_t size = GET_SIZE(header->attribute); // in words
 	uint32_t flag = GET_FLAG(header->attribute);
 
-	// State 0: Neighbour blocks are not free.
-	// State 1: precedent block only is free
-	// State 2: successive block only is free.
-	// State 3: both blocks are free.
-	int state = 0; 
+	NEIGHBOUR_BLOCKS state = NEIGHBOUR_BLOCKS_NOT_FREE; 
 
 	struct freeBlockLinks *successorBlockLinks = NULL; // update only if necessary
 
@@ -524,7 +570,7 @@ void coalescingAndFree(void* block) {
 	uint64_t sizeOffset;
 	// Is precedent block free? 
 	if (flag == MSB_TO_ONE) {
-		state = 1;
+		state = NEIGHBOUR_BLOCKS_PRECEDENT_FREE;
 		// In this case it's just about updating the size of the prev free block 
 		// and removing the successive one if free.
 		void* footer = ADDRESS_MINUS_OFFSET(block, freeBlockFooter);
@@ -548,11 +594,11 @@ void coalescingAndFree(void* block) {
 			flag = GET_FLAG(nextNextHeader->attribute);
 			if (flag == MSB_TO_ONE) {
 				if (!state) {
-					state = 2;
+					state = NEIGHBOUR_BLOCKS_SUCCESSIVE_FREE;
 					// Do not change address, but Increase size
 					newSize = size + BYTES_TO_WORDS(sizeof(blockHeader)) + nextSize;
 				} else {
-					state = 3;
+					state = NEIGHBOUR_BLOCKS_BOTH_FREE;
 					newSize = newSize + BYTES_TO_WORDS(sizeof(blockHeader)) + nextSize;
 				}
 				successorBlockLinks = nextBlock + sizeof(blockHeader);
@@ -563,8 +609,10 @@ void coalescingAndFree(void* block) {
 		}
 	} // Otherwise it's next block is the mmap footer.
 
-	switch(state){
-		case 0: {
+	switch(state)
+	{
+		case NEIGHBOUR_BLOCKS_NOT_FREE: 
+		{
 			void *currentBlock = freeList;
 			struct freeBlockLinks *currentBlockLinks = ADDRESS_PLUS_OFFSET(currentBlock, blockHeader);
 
@@ -580,27 +628,32 @@ void coalescingAndFree(void* block) {
 			numberFreeBlocks++;
 			break;
 		}
-		case 1: {
+		case NEIGHBOUR_BLOCKS_PRECEDENT_FREE: 
+		{
 			coalesceWithPrevBlock(newAddr, newSize);
 			break;
 		}
-		case 2: {
+		case NEIGHBOUR_BLOCKS_SUCCESSIVE_FREE: 
+		{
 			coalesceWithNextBlock(newAddr, newSize, successorBlockLinks);
 			break;
 		}
-		case 3: {
+		case NEIGHBOUR_BLOCKS_BOTH_FREE: 
+		{
 			coalesceWithNeighbours(newAddr, newSize, successorBlockLinks);
 			break;
 		}
 		default:
-			printf("ERROR");
+		{
+			fprintf(stderr, "memoryManagement.coalescingAndFree - NEIGHBOUR_BLOCKS state unknown\n");
 			exit(-1);
-	}
+		}
+	} // end switch
 
 	// Update total free space
 	// When state == 0, the totalFreeSpace is updated when the block is initialised.
 	totalFreeSpace += WORDS_TO_BYTES(size); // Stats
-	if (state > 0)
+	if (state != NEIGHBOUR_BLOCKS_NOT_FREE)
 		totalFreeSpace += sizeof(blockHeader); 
 	
 	// Largest free region
@@ -610,7 +663,8 @@ void coalescingAndFree(void* block) {
 	freeList = newAddr;
 }
 
-void coalesceWithPrevBlock(void* newAddr, uint32_t newSize) {
+void coalesceWithPrevBlock(void* newAddr, uint32_t newSize) 
+{
 	struct blockHeader *newBlock = INIT_STRUCT(blockHeader, newAddr);
 	newBlock->attribute = newSize;
 
@@ -619,7 +673,8 @@ void coalesceWithPrevBlock(void* newAddr, uint32_t newSize) {
 	updateNextBlockOnCoalescing(newAddr, sizeOffset);
 }
 
-void coalesceWithNextBlock(void* newAddr, uint32_t newSize, struct freeBlockLinks *successorBlockLinks) {
+void coalesceWithNextBlock(void* newAddr, uint32_t newSize, struct freeBlockLinks *successorBlockLinks) 
+{
 	struct blockHeader *newBlock = newAddr;
 	newBlock->attribute = newSize;
 
@@ -644,7 +699,8 @@ void coalesceWithNextBlock(void* newAddr, uint32_t newSize, struct freeBlockLink
 	updateNextBlockOnCoalescing(newAddr, sizeOffset);
 }
 
-void coalesceWithNeighbours(void* newAddr, uint32_t newSize, struct freeBlockLinks *successorBlockLinks) {
+void coalesceWithNeighbours(void* newAddr, uint32_t newSize, struct freeBlockLinks *successorBlockLinks) 
+{
 	struct blockHeader *newBlock = INIT_STRUCT(blockHeader, newAddr);
 	newBlock->attribute = newSize;
 	uint64_t sizeOffset = WORDS_TO_BYTES(newSize);
@@ -656,14 +712,16 @@ void coalesceWithNeighbours(void* newAddr, uint32_t newSize, struct freeBlockLin
 	numberFreeBlocks--;
 }
 
-void setFooterBlockOnCoalescing(void* newAddr, uint64_t sizeOffset, uint32_t newSize) {
+void setFooterBlockOnCoalescing(void* newAddr, uint64_t sizeOffset, uint32_t newSize) 
+{
 	// Footer
 	void* footerAddr = newAddr + sizeof(blockHeader) + sizeOffset - sizeof(freeBlockFooter);
 	struct freeBlockFooter *footer = INIT_STRUCT(freeBlockFooter, footerAddr);
 	footer->size = newSize;
 }
 
-void updateNextBlockOnCoalescing(void* newAddr, uint64_t sizeOffset) {
+void updateNextBlockOnCoalescing(void* newAddr, uint64_t sizeOffset) 
+{
 	// Next block
 	void* nextBlock = ADDRESS_PLUS_OFFSET(newAddr + sizeOffset, blockHeader);
 	struct blockHeader *nextBlockHeader = INIT_STRUCT(blockHeader, nextBlock);
